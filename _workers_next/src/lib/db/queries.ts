@@ -7,7 +7,7 @@ import { cache } from "react";
 // Database initialization state
 let dbInitialized = false;
 let wishlistTablesReady = false;
-const CURRENT_SCHEMA_VERSION = 8;
+const CURRENT_SCHEMA_VERSION = 9;
 
 async function safeAddColumn(table: string, column: string, definition: string) {
     try {
@@ -21,6 +21,7 @@ async function safeAddColumn(table: string, column: string, definition: string) 
 }
 
 async function ensureIndexes() {
+    // ... existing index logic unchanged ...
     const indexStatements = [
         `CREATE INDEX IF NOT EXISTS products_active_sort_idx ON products(is_active, sort_order, created_at)`,
         `CREATE INDEX IF NOT EXISTS products_stock_count_idx ON products(stock_count)`,
@@ -46,7 +47,7 @@ async function ensureIndexes() {
         `CREATE UNIQUE INDEX IF NOT EXISTS wishlist_votes_item_user_uq ON wishlist_votes(item_id, user_id)`,
     ];
 
-    // Pre-cleanup duplicates for broadcast_reads to prevent unique index failure
+    // ... rest of ensureIndexes ...
     try {
         await db.run(sql`
             DELETE FROM broadcast_reads 
@@ -57,7 +58,6 @@ async function ensureIndexes() {
             )
         `);
     } catch {
-        // Ignore cleanup errors (e.g. table doesn't exist yet)
     }
 
     for (const statement of indexStatements) {
@@ -68,7 +68,6 @@ async function ensureIndexes() {
             if (errorString.includes('no such table') || errorString.includes('does not exist')) {
                 continue;
             }
-            // Ignore "index already exists" or constraint failures if we assume cleanup worked or index exists
             if (errorString.includes('already exists') || errorString.includes('constraint failed')) {
                 continue;
             }
@@ -84,8 +83,6 @@ async function ensureDatabaseInitialized() {
     try {
         // OPTIMIZATION: Check schema version first to avoid heavy DDL checks
         try {
-            // We access the settings table directly to avoid recursive loop if getSetting calls ensureDatabaseInitialized
-            // But getSetting calls db.select which doesn't recurse.
             const version = await getSetting('schema_version');
             if (version === String(CURRENT_SCHEMA_VERSION)) {
                 dbInitialized = true;
@@ -99,9 +96,9 @@ async function ensureDatabaseInitialized() {
         await db.run(sql`SELECT 1 FROM products LIMIT 1`);
 
         // IMPORTANT: Even if table exists, ensure columns exist!
-        // This is a proactive check on startup.
         await ensureProductsColumns();
         await ensureLoginUsersTable();
+        await ensureLoginUsersColumns(); // Add this call
         await ensureUserNotificationsTable();
         await ensureAdminMessagesTable();
         await ensureUserMessagesTable();
@@ -119,6 +116,8 @@ async function ensureDatabaseInitialized() {
     } catch {
         // Table doesn't exist, initialize database
     }
+    // ...
+
 
     console.log("First run detected, initializing database...");
 
@@ -344,6 +343,11 @@ async function ensureOrdersColumns() {
     await safeAddColumn('orders', 'points_used', 'INTEGER DEFAULT 0 NOT NULL');
     await safeAddColumn('orders', 'current_payment_id', 'TEXT');
     await safeAddColumn('orders', 'payee', 'TEXT');
+}
+
+async function ensureLoginUsersColumns() {
+    await safeAddColumn('login_users', 'last_checkin_at', 'INTEGER');
+    await safeAddColumn('login_users', 'consecutive_days', 'INTEGER DEFAULT 0');
 }
 
 async function isProductAggregatesBackfilled(): Promise<boolean> {
