@@ -159,7 +159,7 @@ Go to [credit.linux.do](https://credit.linux.do) to create/configure:
 Get **Client ID** and **Client Secret**, and fill them into environment variables as `MERCHANT_ID` and `MERCHANT_KEY` (**Secret recommended**).
 
 ### 3. Other Variables
-*   **ADMIN_USERS**: Admin usernames, comma separated (e.g., `chatgpt,admin`) (**Secret recommended**).
+*   **ADMIN_USERS**: Admin usernames, comma separated (supports Linux DO usernames and GitHub usernames in `gh_<login>` format, e.g., `chatgpt,gh_octocat`) (**Secret recommended**).
 *   **NEXT_PUBLIC_APP_URL**: Your full app URL (e.g., `https://store.chatgpt.org.uk`). **Must be Text, not Secret**.
 
 ## 🔌 Card Auto-Replenish API Integration
